@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Forja Eterna</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@tonconnect/ui@2.0.9/dist/tonconnect-ui.min.js"></script>
+<style>
+:root{--bg:#f4efe6;--card:#fffaf0;--ink:#2b2118;--mut:#7a6a58;--ac:#c2692b;--on:#fff;--ok:#2f8a43;--no:#b8402f;--line:#e2d6c2;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){color-scheme:dark;--bg:#1a1511;--card:#251e18;--ink:#f1e7d8;--mut:#a69580;--ac:#e8863f;--on:#1a1511;--ok:#6cc47d;--no:#ef7a68;--line:#3a2f26}}
+:root[data-theme="dark"]{color-scheme:dark;--bg:#1a1511;--card:#251e18;--ink:#f1e7d8;--mut:#a69580;--ac:#e8863f;--on:#1a1511;--ok:#6cc47d;--no:#ef7a68;--line:#3a2f26}
+html,body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.4 system-ui,-apple-system,"Segoe UI",sans-serif}
+.wrap{max-width:520px;margin:0 auto;padding:12px}
+h1{font-size:20px;margin:0}
+.top{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.coins{font-weight:800;font-size:20px;color:var(--ac)}
+.inv{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}
+.chip{background:var(--card);border:1px solid var(--line);border-radius:999px;padding:3px 10px;font-size:14px}
+.goal{background:var(--ac);color:var(--on);border-radius:12px;padding:10px 12px;margin-bottom:10px;font-weight:600}
+.goal small{display:block;font-weight:400;opacity:.9}
+.tabs{display:flex;gap:6px;margin-bottom:10px}
+.tabs button{flex:1;padding:10px;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:10px;font-size:15px;font-weight:600}
+.tabs button.on{background:var(--ac);color:var(--on);border-color:var(--ac)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin-bottom:8px;display:flex;align-items:center;gap:10px}
+.card .t{flex:1;min-width:0}
+.card b{display:block}
+.card .c{font-size:13px;color:var(--mut)}
+.ok{color:var(--ok)}.no{color:var(--no)}
+button.act{background:var(--ac);color:var(--on);border:0;border-radius:10px;padding:10px 14px;font-weight:700;font-size:15px;white-space:nowrap}
+button:disabled{opacity:.35}
+.g{display:grid;gap:10px}
+.gbtn{position:relative;overflow:visible;background:var(--card);color:var(--ink);border:2px solid var(--line);border-radius:16px;padding:18px;text-align:left;font-size:17px;font-weight:700;display:flex;align-items:center;gap:14px;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+.gbtn:active:not(:disabled){transform:scale(.97);border-color:var(--ac)}
+.gbtn .e{font-size:36px}
+.gbtn small{display:block;font-weight:400;color:var(--mut);font-size:13px}
+.pop{position:absolute;pointer-events:none;font-weight:800;color:var(--ac);animation:up .8s forwards;z-index:5}
+@keyframes up{from{opacity:1;transform:translateY(0)}to{opacity:0;transform:translateY(-46px)}}
+h2{font-size:15px;margin:14px 0 6px;color:var(--mut);text-transform:uppercase;letter-spacing:.05em}
+.rs{margin-top:20px;background:none;border:0;color:var(--mut);font-size:12px;text-decoration:underline}
+.hid{display:none}
+</style></head><body><div class="wrap">
+<div class="top"><h1>🔨 Forja Eterna</h1><div class="coins" id="coins"></div></div>
+<div id="ton-btn" style="margin-bottom:8px"></div><div id="net" style="font-size:12px;color:var(--mut);margin-bottom:8px"></div>
+<div class="inv" id="inv"></div>
+<div class="goal" id="goal"></div>
+<div class="tabs" id="tabs"></div>
+<div id="p0"></div><div id="p1" class="hid"></div><div id="p2" class="hid"></div>
+<button class="rs" id="rs">Reiniciar partida</button>
+</div>
+<script>
+const $=s=>document.querySelector(s);
+const h=(t,c,x)=>{const e=document.createElement(t);if(c)e.className=c;if(x!=null)e.innerHTML=x;return e};
+const R={wood:['🪵','Madera'],stone:['🪨','Piedra'],ore:['⛏️','Mineral'],gem:['💎','Gema'],plank:['📏','Tablón'],ingot:['🔩','Lingote'],sword:['🗡️','Espada'],shield:['🛡️','Escudo'],crown:['👑','Corona real']};
+const PRICE={plank:4,ingot:18,sword:110,shield:90,crown:900};
+const def=()=>({res:{wood:0,stone:0,ore:0,gem:0,plank:0,ingot:0,sword:0,shield:0,crown:0},tot:{wood:0,stone:0,ore:0,gem:0},made:{},coins:0,axe:0,pick:0,furnace:false,w:{cut:0,mine:0,smith:0},goal:0,acc:{}});
+let S=def();
+try{const j=localStorage.getItem('forja_v1');if(j)S=Object.assign(def(),JSON.parse(j))}catch(e){}
+/* ===== CONFIG: cambia esto al desplegar ===== */
+const CONFIG={API_BASE:'',MANIFEST_URL:location.origin+'/tonconnect-manifest.json'};
+const tg=window.Telegram&&window.Telegram.WebApp;
+if(tg){try{tg.ready();tg.expand()}catch(e){}}
+const initData=tg?tg.initData:'';
+function setNet(t){const n=document.getElementById('net');if(n)n.textContent=t}
+async function api(path,method,body){
+ if(!CONFIG.API_BASE)return null;
+ try{const r=await fetch(CONFIG.API_BASE+path,{method,headers:{'Content-Type':'application/json','X-Tg-Init-Data':initData},body:body?JSON.stringify(body):undefined});
+  if(!r.ok)throw new Error(r.status);return await r.json()}
+ catch(e){setNet('Sin conexión con el servidor (modo local)');return null}
+}
+const save=()=>{try{localStorage.setItem('forja_v1',JSON.stringify(S))}catch(e){}api('/api/state','POST',{state:S})};
+async function bootNet(){
+ if(!CONFIG.API_BASE){setNet('Modo local · pon tu servidor en CONFIG.API_BASE');return}
+ const r=await api('/api/state','GET');
+ if(r&&r.state){S=Object.assign(def(),r.state);update()}
+ if(r)setNet('Conectado ✓'+(tg&&tg.initDataUnsafe&&tg.initDataUnsafe.user?' · '+tg.initDataUnsafe.user.first_name:''));
+}
+function initTon(){
+ if(!window.TON_CONNECT_UI){setNet('TON Connect no cargó');return}
+ const ui=new TON_CONNECT_UI.TonConnectUI({manifestUrl:CONFIG.MANIFEST_URL,buttonRootId:'ton-btn'});
+ ui.onStatusChange(w=>{if(w&&w.account){S.wallet=w.account.address;api('/api/wallet','POST',{address:w.account.address})}});
+}
+const fmt=n=>n>=1e4?(n/1e3).toFixed(1)+'k':Math.floor(n);
+const canPay=c=>Object.entries(c).every(([k,v])=>S.res[k]>=v);
+const pay=c=>Object.entries(c).forEach(([k,v])=>S.res[k]-=v);
+const costHTML=c=>Object.entries(c).map(([k,v])=>`<span class="${S.res[k]>=v?'ok':'no'}">${R[k][0]}${v}</span>`).join(' ');
+const axeCost=()=>({wood:8*2**S.axe,stone:4*2**S.axe});
+const pickCost=()=>{const n=S.pick,c={wood:10*2**n,stone:8*2**n};if(n>=2)c.ingot=n-1;return c};
+const RECIPES=[
+ {id:'plank',in:{wood:3},out:'plank',txt:'Tablón'},
+ {id:'ingot',in:{ore:2,wood:2},out:'ingot',txt:'Lingote',f:1},
+ {id:'sword',in:{ingot:3,plank:1},out:'sword',txt:'Espada',f:1},
+ {id:'shield',in:{ingot:2,plank:4},out:'shield',txt:'Escudo',f:1},
+ {id:'crown',in:{ingot:8,gem:3},out:'crown',txt:'Corona real',f:1}
+];
+const WK=[
+ {id:'cut',n:'Leñador',e:'🪓',d:'Corta 0.6 🪵 por segundo',base:25},
+ {id:'mine',n:'Minero',e:'⛏️',d:'Saca 0.4 🪨 y 0.15 ⛏️ por segundo',base:60},
+ {id:'smith',n:'Herrero',e:'🔥',d:'Funde 1 lingote cada 3 s (necesita horno)',base:150}
+];
+const wCost=w=>Math.ceil(w.base*1.2**S.w[w.id]);
+const G=[
+ {t:'Tala 10 de madera',r:5,ok:()=>S.tot.wood>=10},
+ {t:'Crea un tablón en el Taller',r:10,ok:()=>S.made.plank>=1},
+ {t:'Mejora tu hacha (Tienda)',r:20,ok:()=>S.axe>=1},
+ {t:'Mejora tu pico para poder minar',r:30,ok:()=>S.pick>=1},
+ {t:'Construye el horno',r:40,ok:()=>S.furnace},
+ {t:'Funde 5 lingotes',r:80,ok:()=>S.made.ingot>=5},
+ {t:'Contrata a tu primer ayudante',r:100,ok:()=>S.w.cut+S.w.mine+S.w.smith>=1},
+ {t:'Forja una espada',r:150,ok:()=>S.made.sword>=1},
+ {t:'Encuentra 3 gemas minando',r:200,ok:()=>S.tot.gem>=3},
+ {t:'Forja la Corona real',r:1000,ok:()=>S.made.crown>=1}
+];
+const ups=[];
+function pop(el,txt){const p=h('span','pop',txt);p.style.left=(10+Math.random()*60)+'%';p.style.top='6px';el.appendChild(p);setTimeout(()=>p.remove(),800)}
+function gather(k,el){
+ let y=k==='wood'?1+S.axe:k==='stone'?1+S.pick:S.pick;
+ const crit=Math.random()<.1;if(crit)y*=2;
+ S.res[k]+=y;S.tot[k]+=y;
+ pop(el,(crit?'¡x2! ':'')+'+'+y+' '+R[k][0]);
+ if(k==='ore'&&Math.random()<.04+.01*S.pick){S.res.gem++;S.tot.gem++;pop(el,'💎 ¡Gema!')}
+ update();
+}
+/* Recolectar */
+const p0=$('#p0'),g0=h('div','g');p0.appendChild(g0);
+[['wood','Talar','Madera'],['stone','Picar piedra'],['ore','Minar mineral']].forEach(([k,n])=>{
+ const b=h('button','gbtn');const e=h('span','e',R[k][0]);const t=h('span','',n+'<small></small>');
+ b.append(e,t);b.onclick=()=>gather(k,b);g0.appendChild(b);
+ ups.push(()=>{
+  const y=k==='wood'?1+S.axe:k==='stone'?1+S.pick:S.pick;
+  b.disabled=k==='ore'&&S.pick<1;
+  t.querySelector('small').textContent=b.disabled?'Necesitas un pico (Tienda → Mejoras)':'+'+y+' por toque · 10% de crítico'+(k==='ore'?' · chance de 💎':'')
+ });
+});
+p0.appendChild(h('p','c','<span style="color:var(--mut);font-size:13px">Toca, toca, toca. Craftea en el Taller, vende en la Tienda y contrata ayudantes para que trabajen solos.</span>'));
+/* Taller */
+const p1=$('#p1');
+{
+ const fc={stone:25,plank:4};const card=h('div','card');const t=h('div','t','<b>🏭 Horno</b><span class="c"></span>');const b=h('button','act','Construir');
+ card.append(t,b);p1.appendChild(card);
+ b.onclick=()=>{if(canPay(fc)&&!S.furnace){pay(fc);S.furnace=true;update()}};
+ ups.push(()=>{t.querySelector('.c').innerHTML=S.furnace?'<span class="ok">Construido ✓ — desbloquea lingotes y armas</span>':costHTML(fc);b.disabled=S.furnace||!canPay(fc);b.textContent=S.furnace?'✓':'Construir'});
+}
+RECIPES.forEach(r=>{
+ const card=h('div','card');const t=h('div','t',`<b>${R[r.out][0]} ${r.txt}</b><span class="c"></span>`);const b=h('button','act','Craftear');
+ card.append(t,b);p1.appendChild(card);
+ b.onclick=()=>{if(canPay(r.in)&&(!r.f||S.furnace)){pay(r.in);S.res[r.out]++;S.made[r.id]=(S.made[r.id]||0)+1;update()}};
+ ups.push(()=>{t.querySelector('.c').innerHTML=(r.f&&!S.furnace?'🔒 Necesita horno · ':'')+costHTML(r.in)+' → vale '+PRICE[r.out]+' 🪙';b.disabled=!canPay(r.in)||(r.f&&!S.furnace)});
+});
+/* Tienda */
+const p2=$('#p2');
+p2.appendChild(h('h2','','Mercado'));
+Object.keys(PRICE).forEach(k=>{
+ const card=h('div','card');const t=h('div','t',`<b>${R[k][0]} ${R[k][1]}</b><span class="c"></span>`);const b=h('button','act','Vender');
+ card.append(t,b);p2.appendChild(card);
+ b.onclick=()=>{S.coins+=S.res[k]*PRICE[k];S.res[k]=0;update()};
+ ups.push(()=>{t.querySelector('.c').textContent='Tienes '+S.res[k]+' · '+PRICE[k]+' 🪙 c/u';b.disabled=S.res[k]<1;b.textContent='Vender +'+fmt(S.res[k]*PRICE[k])});
+});
+p2.appendChild(h('h2','','Mejoras'));
+[['axe','🪓 Hacha','madera por toque',axeCost],['pick','⛏️ Pico','piedra y mineral por toque',pickCost]].forEach(([k,n,d,cf])=>{
+ const card=h('div','card');const t=h('div','t',`<b></b><span class="c"></span>`);const b=h('button','act','Mejorar');
+ card.append(t,b);p2.appendChild(card);
+ b.onclick=()=>{if(S[k]<6&&canPay(cf())){pay(cf());S[k]++;update()}};
+ ups.push(()=>{const mx=S[k]>=6;t.querySelector('b').textContent=n+' nv.'+(S[k]+1);t.querySelector('.c').innerHTML=mx?'Nivel máximo':d+' · '+costHTML(cf());b.disabled=mx||!canPay(cf());b.textContent=mx?'MAX':'Mejorar'});
+});
+p2.appendChild(h('h2','','Ayudantes (se pagan con 🪙)'));
+WK.forEach(w=>{
+ const card=h('div','card');const t=h('div','t',`<b></b><span class="c"></span>`);const b=h('button','act','');
+ card.append(t,b);p2.appendChild(card);
+ b.onclick=()=>{const c=wCost(w);if(S.coins>=c){S.coins-=c;S.w[w.id]++;update()}};
+ ups.push(()=>{t.querySelector('b').textContent=w.e+' '+w.n+' ×'+S.w[w.id];t.querySelector('.c').textContent=w.d;b.disabled=S.coins<wCost(w);b.textContent=fmt(wCost(w))+' 🪙'});
+});
+/* Tabs */
+const tb=$('#tabs'),pages=[p0,p1,p2];
+['⛏️ Recolectar','🔨 Taller','🪙 Tienda'].forEach((n,i)=>{
+ const b=h('button',i?'':'on',n);b.onclick=()=>{pages.forEach((p,j)=>p.classList.toggle('hid',j!==i));[...tb.children].forEach((x,j)=>x.classList.toggle('on',j===i))};tb.appendChild(b);
+});
+/* Update */
+function update(){
+ while(S.goal<G.length&&G[S.goal].ok()){S.coins+=G[S.goal].r;S.goal++}
+ $('#coins').textContent='🪙 '+fmt(S.coins);
+ $('#inv').innerHTML=Object.keys(R).filter(k=>S.res[k]>0||['wood','stone'].includes(k)).map(k=>`<span class="chip">${R[k][0]} ${fmt(S.res[k])}</span>`).join('');
+ $('#goal').innerHTML=S.goal<G.length?`🎯 ${G[S.goal].t}<small>Recompensa: ${G[S.goal].r} 🪙</small>`:'👑 ¡Eres maestro herrero! Sigue forjando coronas.';
+ ups.forEach(f=>f());
+}
+/* Loop */
+function add(k,v){S.acc[k]=(S.acc[k]||0)+v;const w=Math.floor(S.acc[k]);if(w>0){S.acc[k]-=w;S.res[k]+=w;if(S.tot[k]!=null)S.tot[k]+=w}}
+let last=Date.now(),sv=0;
+setInterval(()=>{
+ const n=Date.now(),dt=Math.min((n-last)/1000,2);last=n;
+ add('wood',S.w.cut*.6*dt);add('stone',S.w.mine*.4*dt);if(S.pick>=1)add('ore',S.w.mine*.15*dt);
+ if(S.furnace&&S.w.smith){S.acc.sm=(S.acc.sm||0)+S.w.smith*dt/3;
+  while(S.acc.sm>=1){const c={ore:2,wood:2};if(canPay(c)){pay(c);S.res.ingot++;S.made.ingot=(S.made.ingot||0)+1;S.acc.sm--}else{S.acc.sm=1;break}}}
+ update();sv+=dt;if(sv>5){sv=0;save()}
+},500);
+let rc=0;$('#rs').onclick=function(){if(rc++){S=def();save();rc=0;this.textContent='Reiniciar partida';update()}else{this.textContent='¿Seguro? Toca otra vez para borrar todo'}};
+update();bootNet();initTon();
+</script></body></html>
