@@ -5,9 +5,7 @@
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@tonconnect/ui@2.0.9/dist/tonconnect-ui.min.js"></script>
 <style>
-:root{--bg:#f4efe6;--card:#fffaf0;--ink:#2b2118;--mut:#7a6a58;--ac:#c2692b;--on:#fff;--ok:#2f8a43;--no:#b8402f;--line:#e2d6c2;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){color-scheme:dark;--bg:#1a1511;--card:#251e18;--ink:#f1e7d8;--mut:#a69580;--ac:#e8863f;--on:#1a1511;--ok:#6cc47d;--no:#ef7a68;--line:#3a2f26}}
-:root[data-theme="dark"]{color-scheme:dark;--bg:#1a1511;--card:#251e18;--ink:#f1e7d8;--mut:#a69580;--ac:#e8863f;--on:#1a1511;--ok:#6cc47d;--no:#ef7a68;--line:#3a2f26}
+:root{--bg:#15100c;--card:#211812;--ink:#f4e8d6;--mut:#a89078;--ac:#ff7a1a;--on:#1b0f06;--ok:#7bd88f;--no:#ff8a75;--line:#3b2a1c;color-scheme:dark;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
 html,body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.4 system-ui,-apple-system,"Segoe UI",sans-serif}
 .wrap{max-width:520px;margin:0 auto;padding:12px}
 h1{font-size:20px;margin:0}
@@ -37,6 +35,7 @@ button:disabled{opacity:.35}
 h2{font-size:15px;margin:14px 0 6px;color:var(--mut);text-transform:uppercase;letter-spacing:.05em}
 .rs{margin-top:20px;background:none;border:0;color:var(--mut);font-size:12px;text-decoration:underline}
 .hid{display:none}
+html,body{background:radial-gradient(120% 50% at 50% -8%,#4a2208 0%,var(--bg) 62%) no-repeat fixed var(--bg)}h1{letter-spacing:.02em}.goal{box-shadow:0 0 22px rgba(255,122,26,.35)}.card,.gbtn{box-shadow:0 2px 10px rgba(0,0,0,.35)}
 </style></head><body><div class="wrap">
 <div class="top"><h1>🔨 Forja Eterna</h1><div class="coins" id="coins"></div></div>
 <div id="ton-btn" style="margin-bottom:8px"></div><div id="net" style="font-size:12px;color:var(--mut);margin-bottom:8px"></div>
@@ -49,8 +48,11 @@ h2{font-size:15px;margin:14px 0 6px;color:var(--mut);text-transform:uppercase;le
 <script>
 const $=s=>document.querySelector(s);
 const h=(t,c,x)=>{const e=document.createElement(t);if(c)e.className=c;if(x!=null)e.innerHTML=x;return e};
-const R={wood:['🪵','Madera'],stone:['🪨','Piedra'],ore:['⛏️','Mineral'],gem:['💎','Gema'],plank:['📏','Tablón'],ingot:['🔩','Lingote'],sword:['🗡️','Espada'],shield:['🛡️','Escudo'],crown:['👑','Corona real']};
-const PRICE={plank:4,ingot:18,sword:110,shield:90,crown:900};
+const R={wood:['🪵','Madera'],stone:['🪨','Piedra'],ore:['⛏️','Mineral'],gem:['💎','Gema'],plank:['📏','Tablón'],ingot:['🔩','Lingote'],sword:['🗡️','Espada'],shield:['🛡️','Escudo'],helmet:['⛑️','Casco'],ring:['💍','Anillo de gema'],armor:['🥋','Armadura'],crown:['👑','Corona real']};
+const PRICE={plank:4,ingot:18,sword:110,shield:90,helmet:220,ring:600,armor:1100,crown:2500};
+const CRTP={sword:5,shield:4,helmet:6,ring:15,armor:20,crown:100};
+const MK={};const rollMk=()=>Object.keys(PRICE).forEach(k=>MK[k]=+(.7+Math.random()*.7).toFixed(2));rollMk();setInterval(rollMk,45000);
+const pr=k=>Math.round(PRICE[k]*MK[k]);
 const def=()=>({res:{wood:0,stone:0,ore:0,gem:0,plank:0,ingot:0,sword:0,shield:0,crown:0},tot:{wood:0,stone:0,ore:0,gem:0},made:{},coins:0,axe:0,pick:0,furnace:false,w:{cut:0,mine:0,smith:0},goal:0,acc:{}});
 let S=def();
 try{const j=localStorage.getItem('forja_v1');if(j)S=Object.assign(def(),JSON.parse(j))}catch(e){}
@@ -83,20 +85,23 @@ const canPay=c=>Object.entries(c).every(([k,v])=>S.res[k]>=v);
 const pay=c=>Object.entries(c).forEach(([k,v])=>S.res[k]-=v);
 const costHTML=c=>Object.entries(c).map(([k,v])=>`<span class="${S.res[k]>=v?'ok':'no'}">${R[k][0]}${v}</span>`).join(' ');
 const axeCost=()=>({wood:8*2**S.axe,stone:4*2**S.axe});
-const pickCost=()=>{const n=S.pick,c={wood:10*2**n,stone:8*2**n};if(n>=2)c.ingot=n-1;return c};
+const pickCost=()=>{const n=S.pick,c={wood:10*2**n,stone:8*2**n};if(n>=2)c.ingot=2*(n-1);return c};
 const RECIPES=[
  {id:'plank',in:{wood:3},out:'plank',txt:'Tablón'},
  {id:'ingot',in:{ore:2,wood:2},out:'ingot',txt:'Lingote',f:1},
  {id:'sword',in:{ingot:3,plank:1},out:'sword',txt:'Espada',f:1},
  {id:'shield',in:{ingot:2,plank:4},out:'shield',txt:'Escudo',f:1},
- {id:'crown',in:{ingot:8,gem:3},out:'crown',txt:'Corona real',f:1}
+ {id:'helmet',in:{ingot:4,plank:2},out:'helmet',txt:'Casco',f:1},
+ {id:'ring',in:{ingot:2,gem:1},out:'ring',txt:'Anillo de gema',f:1},
+ {id:'armor',in:{ingot:10,plank:6,gem:1},out:'armor',txt:'Armadura',f:1},
+ {id:'crown',get in(){const n=S.made.crown||0;return {ingot:20+8*n,gem:8+3*n,plank:6+2*n}},out:'crown',txt:'Corona real',f:1}
 ];
 const WK=[
  {id:'cut',n:'Leñador',e:'🪓',d:'Corta 0.6 🪵 por segundo',base:25},
  {id:'mine',n:'Minero',e:'⛏️',d:'Saca 0.4 🪨 y 0.15 ⛏️ por segundo',base:60},
  {id:'smith',n:'Herrero',e:'🔥',d:'Funde 1 lingote cada 3 s (necesita horno)',base:150}
 ];
-const wCost=w=>Math.ceil(w.base*1.2**S.w[w.id]);
+const wCost=w=>Math.ceil(w.base*1.25**S.w[w.id]);
 const G=[
  {t:'Tala 10 de madera',r:5,ok:()=>S.tot.wood>=10},
  {t:'Crea un tablón en el Taller',r:10,ok:()=>S.made.plank>=1},
@@ -107,16 +112,17 @@ const G=[
  {t:'Contrata a tu primer ayudante',r:100,ok:()=>S.w.cut+S.w.mine+S.w.smith>=1},
  {t:'Forja una espada',r:150,ok:()=>S.made.sword>=1},
  {t:'Encuentra 3 gemas minando',r:200,ok:()=>S.tot.gem>=3},
- {t:'Forja la Corona real',r:1000,ok:()=>S.made.crown>=1}
+ {t:'Forja la Corona real',r:1000,ok:()=>S.made.crown>=1},
+ {t:'Forja 3 coronas reales (cada una cuesta más)',r:5000,ok:()=>(S.made.crown||0)>=3}
 ];
 const ups=[];
 function pop(el,txt){const p=h('span','pop',txt);p.style.left=(10+Math.random()*60)+'%';p.style.top='6px';el.appendChild(p);setTimeout(()=>p.remove(),800)}
 function gather(k,el){
- let y=k==='wood'?1+S.axe:k==='stone'?1+S.pick:S.pick;
- const crit=Math.random()<.1;if(crit)y*=2;
+ let y=k==='wood'?1+S.axe:k==='stone'?1+S.pick:Math.ceil(S.pick/2);
+ const crit=Math.random()<.08;if(crit)y*=2;
  S.res[k]+=y;S.tot[k]+=y;
  pop(el,(crit?'¡x2! ':'')+'+'+y+' '+R[k][0]);
- if(k==='ore'&&Math.random()<.04+.01*S.pick){S.res.gem++;S.tot.gem++;pop(el,'💎 ¡Gema!')}
+ if(k==='ore'&&Math.random()<.012+.004*S.pick){S.res.gem++;S.tot.gem++;pop(el,'💎 ¡Gema!')}
  update();
 }
 /* Recolectar */
@@ -125,9 +131,9 @@ const p0=$('#p0'),g0=h('div','g');p0.appendChild(g0);
  const b=h('button','gbtn');const e=h('span','e',R[k][0]);const t=h('span','',n+'<small></small>');
  b.append(e,t);b.onclick=()=>gather(k,b);g0.appendChild(b);
  ups.push(()=>{
-  const y=k==='wood'?1+S.axe:k==='stone'?1+S.pick:S.pick;
+  const y=k==='wood'?1+S.axe:k==='stone'?1+S.pick:Math.ceil(S.pick/2);
   b.disabled=k==='ore'&&S.pick<1;
-  t.querySelector('small').textContent=b.disabled?'Necesitas un pico (Tienda → Mejoras)':'+'+y+' por toque · 10% de crítico'+(k==='ore'?' · chance de 💎':'')
+  t.querySelector('small').textContent=b.disabled?'Necesitas un pico (Tienda → Mejoras)':'+'+y+' por toque · 8% de crítico'+(k==='ore'?' · chance de 💎':'')
  });
 });
 p0.appendChild(h('p','c','<span style="color:var(--mut);font-size:13px">Toca, toca, toca. Craftea en el Taller, vende en la Tienda y contrata ayudantes para que trabajen solos.</span>'));
@@ -142,7 +148,7 @@ const p1=$('#p1');
 RECIPES.forEach(r=>{
  const card=h('div','card');const t=h('div','t',`<b>${R[r.out][0]} ${r.txt}</b><span class="c"></span>`);const b=h('button','act','Craftear');
  card.append(t,b);p1.appendChild(card);
- b.onclick=()=>{if(canPay(r.in)&&(!r.f||S.furnace)){pay(r.in);S.res[r.out]++;S.made[r.id]=(S.made[r.id]||0)+1;update()}};
+ b.onclick=()=>{if(canPay(r.in)&&(!r.f||S.furnace)){pay(r.in);S.res[r.out]++;S.made[r.id]=(S.made[r.id]||0)+1;S.crt=(S.crt||0)+(CRTP[r.id]||0);update()}};
  ups.push(()=>{t.querySelector('.c').innerHTML=(r.f&&!S.furnace?'🔒 Necesita horno · ':'')+costHTML(r.in)+' → vale '+PRICE[r.out]+' 🪙';b.disabled=!canPay(r.in)||(r.f&&!S.furnace)});
 });
 /* Tienda */
@@ -151,9 +157,13 @@ p2.appendChild(h('h2','','Mercado'));
 Object.keys(PRICE).forEach(k=>{
  const card=h('div','card');const t=h('div','t',`<b>${R[k][0]} ${R[k][1]}</b><span class="c"></span>`);const b=h('button','act','Vender');
  card.append(t,b);p2.appendChild(card);
- b.onclick=()=>{S.coins+=S.res[k]*PRICE[k];S.res[k]=0;update()};
- ups.push(()=>{t.querySelector('.c').textContent='Tienes '+S.res[k]+' · '+PRICE[k]+' 🪙 c/u';b.disabled=S.res[k]<1;b.textContent='Vender +'+fmt(S.res[k]*PRICE[k])});
+ b.onclick=()=>{S.coins+=S.res[k]*pr(k);S.res[k]=0;update()};
+ ups.push(()=>{t.querySelector('.c').textContent='Tienes '+S.res[k]+' · '+pr(k)+' 🪙 c/u '+(MK[k]>1.1?'▲ alto':MK[k]<.9?'▼ bajo':'');b.disabled=S.res[k]<1;b.textContent='Vender +'+fmt(S.res[k]*pr(k))});
 });
+p2.appendChild(h('h2','','Wallet y puntos CRT'));
+{const card=h('div','card');const t=h('div','t','<b>💠 Puntos CRT</b><span class="c"></span>');const b=h('button','act','Fase 2');
+ card.append(t,b);p2.appendChild(card);b.disabled=true;
+ ups.push(()=>{t.querySelector('.c').innerHTML=(S.crt||0)+' puntos · '+(S.wallet?'wallet conectada ✓':'conecta tu wallet arriba')+'<br>Son puntos del juego: aún sin valor ni retiro.'})}
 p2.appendChild(h('h2','','Mejoras'));
 [['axe','🪓 Hacha','madera por toque',axeCost],['pick','⛏️ Pico','piedra y mineral por toque',pickCost]].forEach(([k,n,d,cf])=>{
  const card=h('div','card');const t=h('div','t',`<b></b><span class="c"></span>`);const b=h('button','act','Mejorar');
@@ -175,9 +185,10 @@ const tb=$('#tabs'),pages=[p0,p1,p2];
 });
 /* Update */
 function update(){
+ Object.keys(R).forEach(k=>{if(typeof S.res[k]!=='number')S.res[k]=0});
  while(S.goal<G.length&&G[S.goal].ok()){S.coins+=G[S.goal].r;S.goal++}
  $('#coins').textContent='🪙 '+fmt(S.coins);
- $('#inv').innerHTML=Object.keys(R).filter(k=>S.res[k]>0||['wood','stone'].includes(k)).map(k=>`<span class="chip">${R[k][0]} ${fmt(S.res[k])}</span>`).join('');
+ $('#inv').innerHTML=Object.keys(R).filter(k=>S.res[k]>0||['wood','stone'].includes(k)).map(k=>`<span class="chip">${R[k][0]} ${fmt(S.res[k])}</span>`).join('')+(S.crt?`<span class="chip">💠 ${S.crt}</span>`:'')+(S.wallet?`<span class="chip">👛 ${S.wallet.slice(0,5)}…${S.wallet.slice(-4)}</span>`:'');
  $('#goal').innerHTML=S.goal<G.length?`🎯 ${G[S.goal].t}<small>Recompensa: ${G[S.goal].r} 🪙</small>`:'👑 ¡Eres maestro herrero! Sigue forjando coronas.';
  ups.forEach(f=>f());
 }
