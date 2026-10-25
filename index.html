@@ -55,7 +55,7 @@ const def=()=>({res:{wood:0,stone:0,ore:0,gem:0,plank:0,ingot:0,sword:0,shield:0
 let S=def();
 try{const j=localStorage.getItem('forja_v1');if(j)S=Object.assign(def(),JSON.parse(j))}catch(e){}
 /* ===== CONFIG: cambia esto al desplegar ===== */
-const CONFIG={API_BASE:'',MANIFEST_URL:location.origin+'/tonconnect-manifest.json'};
+const CONFIG={API_BASE:'https://forja-server.onrender.com',MANIFEST_URL:location.origin+'/tonconnect-manifest.json'};
 const tg=window.Telegram&&window.Telegram.WebApp;
 if(tg){try{tg.ready();tg.expand()}catch(e){}}
 const initData=tg?tg.initData:'';
